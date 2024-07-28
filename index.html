@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    #chat { display: none; }
+  </style>
+</head>
+<body>
+  <div id="auth">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div id="chat">
+    <h2>Chat</h2>
+    <input type="text" id="room" placeholder="Room">
+    <button onclick="joinRoom()">Join Room</button>
+    <button onclick="leaveRoom()">Leave Room</button>
+    <div id="messages"></div>
+    <input type="text" id="message" placeholder="Message">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let socket;
+    let token;
+
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.token) {
+          token = data.token;
+          document.getElementById('auth').style.display = 'none';
+          document.getElementById('chat').style.display = 'block';
+          socket = io({ query: { token } });
+
+          socket.on('connect', () => {
+            console.log('Connected to server');
+          });
+
+          socket.on('message', data => {
+            const messages = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.innerText = `${data.sender}: ${data.message}`;
+            messages.appendChild(messageElement);
+          });
+
+          socket.on('privateMessage', data => {
+            console.log('Private message:', data);
+          });
+        } else {
+          alert('Login failed');
+        }
+      });
+    }
+
+    function joinRoom() {
+      const room = document.getElementById('room').value;
+      socket.emit('joinRoom', room);
+    }
+
+    function leaveRoom() {
+      const room = document.getElementById('room').value;
+      socket.emit('leaveRoom', room);
+    }
+
+    function sendMessage() {
+      const room = document.getElementById('room').value;
+      const message = document.getElementById('message').value;
+      socket.emit('message', { room, message });
+    }
+  </script>
+</body>
+</html>
